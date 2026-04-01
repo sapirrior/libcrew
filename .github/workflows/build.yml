@@ -1,0 +1,19 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'b[0-9]*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev clang
+
+    - name: Build
+      run: make
