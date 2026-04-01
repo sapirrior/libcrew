@@ -1,0 +1,17 @@
+{
+  "name": "fzf",
+  "version": "0.45.0",
+  "description": "A command-line fuzzy finder",
+  "architectures": {
+    "aarch64": {
+      "url": "https://github.com/junegunn/fzf/releases/download/v0.45.0/fzf-0.45.0-linux_arm64.tar.gz",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "x86_64": {
+      "url": "https://github.com/junegunn/fzf/releases/download/v0.45.0/fzf-0.45.0-linux_amd64.tar.gz",
+      "hash": "5d41402abc4b2a76b9719d911017c592"
+    }
+  },
+  "author": "junegunn",
+  "license": "MIT"
+}
