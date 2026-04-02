@@ -176,7 +176,7 @@ void run_engine(const char *url) {
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &state);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, "crew/1.0");
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "icrawlBot/1.0");
 
 	res = curl_easy_perform(curl);
 
