@@ -60,7 +60,7 @@ void run_engine(const char *url) {
         if (res != CURLE_OK) {
             printf("Error: %s\n", curl_easy_strerror(res));
         }
-
+		fprintf(stdout, "\n");
         curl_easy_cleanup(curl);
     }
 }
