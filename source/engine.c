@@ -160,7 +160,7 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *userp) {
 	return realsize;
 }
 
-void run_engine(const char *url) {
+void run_engine(const char *url, const char *label) {
 	CURL		*curl;
 	CURLcode	res;
 	RenderState	state;
@@ -176,15 +176,23 @@ void run_engine(const char *url) {
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &state);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, "icrawlBot/1.0");
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "icrawl/1.0");
 
 	res = curl_easy_perform(curl);
 
 	if (state.line_len > 0)
 		render_line(&state, state.line_buf, state.line_len);
 
-	if (res != CURLE_OK)
-		fprintf(stderr, LIST "error: %s\n" OFF, curl_easy_strerror(res));
+	if (res != CURLE_OK) {
+		if (res == CURLE_HTTP_RETURNED_ERROR)
+			fprintf(stderr, LIST "error: not found — %s\n" OFF, label);
+		else if (res == CURLE_COULDNT_RESOLVE_HOST)
+			fprintf(stderr, LIST "error: no network\n" OFF);
+		else if (res == CURLE_OPERATION_TIMEDOUT)
+			fprintf(stderr, LIST "error: request timed out\n" OFF);
+		else
+			fprintf(stderr, LIST "error: %s\n" OFF, curl_easy_strerror(res));
+	}
 
 	fprintf(stdout, OFF "\n");
 	curl_easy_cleanup(curl);
