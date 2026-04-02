@@ -1,100 +1,52 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -e
 
-REPO="sapirrior/icrawl"
-BIN_NAME="icrawl"
+if command -v gcc >/dev/null 2>&1; then
+    CC="gcc"
+elif command -v clang >/dev/null 2>&1; then
+    CC="clang"
+else
+    echo "Error: gcc or clang not found."
+    exit 1
+fi
 
-die() {
-	echo "error: $1" >&2
-	exit 1
-}
+OS="$(uname -s)"
+EXT=""
+SUDO="sudo"
+INSTALL_DIR="/usr/local/bin"
 
-detect_target() {
-	local os arch
+case "$OS" in
+    Linux*)
+        if [ -n "$PREFIX" ] && [ -n "$TERMUX_VERSION" ]; then
+            SUDO=""
+            INSTALL_DIR="$PREFIX/bin"
+        fi
+        ;;
+    Darwin*)
+        ;;
+    MINGW*|CYGWIN*|MSYS*)
+        SUDO=""
+        EXT=".exe"
+        if [ ! -d "$INSTALL_DIR" ]; then
+            INSTALL_DIR="$HOME/bin"
+        fi
+        ;;
+    *)
+        ;;
+esac
 
-	os="$(uname -s)"
-	arch="$(uname -m)"
+echo "Building icrawl using $CC..."
+$CC -Wall -Wextra -std=c11 -O2 -Iinclude source/main.c source/engine.c -o "icrawl$EXT" -lcurl
 
-	if [ -n "${PREFIX:-}" ] && echo "$PREFIX" | grep -q "com.termux"; then
-		case "$arch" in
-			aarch64) echo "termux-aarch64"; return ;;
-			*) die "unsupported Termux architecture: $arch" ;;
-		esac
-	fi
+chmod +x "icrawl$EXT"
 
-	case "$os" in
-		Linux)
-			case "$arch" in
-				x86_64)  echo "linux-x86_64" ;;
-				aarch64) echo "linux-aarch64" ;;
-				armv7l)  echo "linux-armv7" ;;
-				*) die "unsupported Linux architecture: $arch" ;;
-			esac
-			;;
-		Darwin)
-			case "$arch" in
-				x86_64)  echo "macos-x86_64" ;;
-				arm64)   echo "macos-arm64" ;;
-				*) die "unsupported macOS architecture: $arch" ;;
-			esac
-			;;
-		MINGW*|CYGWIN*|MSYS*)
-			echo "windows-x86_64"
-			;;
-		*)
-			die "unsupported OS: $os"
-			;;
-	esac
-}
+echo "Installing to $INSTALL_DIR..."
+if [ -n "$SUDO" ]; then
+    $SUDO mkdir -p "$INSTALL_DIR"
+    $SUDO mv "icrawl$EXT" "$INSTALL_DIR/icrawl$EXT"
+else
+    mkdir -p "$INSTALL_DIR"
+    mv "icrawl$EXT" "$INSTALL_DIR/icrawl$EXT"
+fi
 
-latest_tag() {
-	curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-		| grep '"tag_name"' \
-		| sed 's/.*"tag_name": *"\([^"]*\)".*/\1/'
-}
-
-install_dir() {
-	if [ -n "${PREFIX:-}" ] && echo "$PREFIX" | grep -q "com.termux"; then
-		echo "$PREFIX/bin"
-	elif [ -w /usr/local/bin ]; then
-		echo "/usr/local/bin"
-	else
-		echo "$HOME/.local/bin"
-	fi
-}
-
-main() {
-	command -v curl >/dev/null 2>&1 || die "curl is required but not installed"
-
-	local target tag asset_name download_url dest_dir dest
-
-	target="$(detect_target)"
-	tag="$(latest_tag)"
-
-	[ -z "$tag" ] && die "could not fetch latest release tag"
-
-	if [ "$target" = "windows-x86_64" ]; then
-		asset_name="${BIN_NAME}-${target}.exe"
-	else
-		asset_name="${BIN_NAME}-${target}"
-	fi
-
-	download_url="https://github.com/${REPO}/releases/download/${tag}/${asset_name}"
-	dest_dir="$(install_dir)"
-	dest="${dest_dir}/${BIN_NAME}"
-
-	echo "detected: $target"
-	echo "release:  $tag"
-	echo "asset:    $asset_name"
-	echo "dest:     $dest"
-	echo ""
-
-	mkdir -p "$dest_dir"
-	curl -fsSL --progress-bar "$download_url" -o "$dest"
-	chmod +x "$dest"
-
-	echo ""
-	echo "installed: $dest"
-}
-
-main "$@"
+echo "Success. icrawl is installed."
