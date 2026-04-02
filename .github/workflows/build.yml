@@ -1,19 +1,133 @@
-name: Release Build
+name: build
 
-on:
+'on':
   push:
     tags:
       - 'B[0-9]*'
 
 jobs:
-  build:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: linux-x86_64
+            cc: gcc
+            extra_flags: ""
+          - target: linux-aarch64
+            cc: aarch64-linux-gnu-gcc
+            extra_flags: ""
+          - target: linux-armv7
+            cc: arm-linux-gnueabihf-gcc
+            extra_flags: ""
+          - target: termux-aarch64
+            cc: aarch64-linux-gnu-gcc
+            extra_flags: "-static"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install cross compilers
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
+          sudo apt-get install -y libcurl4-openssl-dev
+
+      - name: install curl static libs for cross targets
+        if: matrix.target != 'linux-x86_64'
+        run: |
+          sudo apt-get install -y libcurl4-openssl-dev:arm64 libcurl4-openssl-dev:armhf || true
+
+      - name: build
+        run: |
+          mkdir -p bin
+          ${{ matrix.cc }} -Wall -Wextra -std=c11 -O2 -Iinclude \
+            ${{ matrix.extra_flags }} \
+            source/main.c source/engine.c \
+            -o bin/icrawl-${{ matrix.target }} \
+            -lcurl
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: icrawl-${{ matrix.target }}
+          path: bin/icrawl-${{ matrix.target }}
+
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: macos-arm64
+            arch: arm64
+          - target: macos-x86_64
+            arch: x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install curl
+        run: brew install curl
+
+      - name: build
+        run: |
+          mkdir -p bin
+          clang -Wall -Wextra -std=c11 -O2 -Iinclude \
+            -arch ${{ matrix.arch }} \
+            source/main.c source/engine.c \
+            -o bin/icrawl-${{ matrix.target }} \
+            -lcurl
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: icrawl-${{ matrix.target }}
+          path: bin/icrawl-${{ matrix.target }}
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install mingw curl
+        run: |
+          choco install mingw -y
+          curl -fsSL -o curl.zip https://curl.se/windows/dl-8.7.1_2/curl-8.7.1_2-win64-mingw.zip
+          7z x curl.zip -ocurl-win
+        shell: cmd
+
+      - name: build
+        run: |
+          mkdir bin
+          gcc -Wall -Wextra -std=c11 -O2 -Iinclude ^
+            -Icurl-win/curl-8.7.1_2-win64-mingw/include ^
+            source/main.c source/engine.c ^
+            -o bin/icrawl-windows-x86_64.exe ^
+            -Lcurl-win/curl-8.7.1_2-win64-mingw/lib ^
+            -lcurl
+        shell: cmd
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: icrawl-windows-x86_64
+          path: bin/icrawl-windows-x86_64.exe
+
+  release:
+    needs: [build-linux, build-macos, build-windows]
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
-    - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev clang
-
-    - name: Build
-      run: make
+      - name: create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

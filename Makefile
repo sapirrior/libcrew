@@ -1,18 +1,21 @@
-CC = clang
-CFLAGS = -Wall -Wextra -Iinclude
+CC      = gcc
+CFLAGS  = -Wall -Wextra -std=c11 -O2 -Iinclude
 LDFLAGS = -lcurl
-SRC = $(wildcard source/*.c)
-TARGET = icrawl
+SRC     = source/main.c source/engine.c
+BIN     = bin/icrawl
 
-.PHONY: all clean run
+.PHONY: all build clean install
 
-all: $(TARGET)
+all: build
 
-$(TARGET): $(SRC)
-	$(CC) $(CFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
+build: $(BIN)
+
+$(BIN): $(SRC) include/engine.h
+	@mkdir -p bin
+	$(CC) $(CFLAGS) $(SRC) -o $(BIN) $(LDFLAGS)
 
 clean:
-	rm -f $(TARGET)
+	rm -rf bin
 
-run: all
-	./$(TARGET)
+install: build
+	install -m 755 $(BIN) /usr/local/bin/icrawl
