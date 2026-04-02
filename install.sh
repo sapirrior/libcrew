@@ -10,6 +10,11 @@ else
     exit 1
 fi
 
+if ! command -v curl >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
+    echo "Error: curl and tar are required."
+    exit 1
+fi
+
 OS="$(uname -s)"
 EXT=""
 SUDO="sudo"
@@ -34,6 +39,15 @@ case "$OS" in
     *)
         ;;
 esac
+
+# Create a temporary directory and ensure it gets deleted on exit
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+echo "Downloading icrawl source code..."
+cd "$TMP_DIR"
+curl -fsSL https://github.com/sapirrior/icrawl/archive/refs/heads/main.tar.gz | tar -xz
+cd icrawl-main
 
 echo "Building icrawl using $CC..."
 $CC -Wall -Wextra -std=c11 -O2 -Iinclude source/main.c source/engine.c -o "icrawl$EXT" -lcurl
